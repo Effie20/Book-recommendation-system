@@ -254,25 +254,48 @@ for i, (_, row) in enumerate(trending_books.iterrows()):
 # --------------------------
 # RECOMMENDATIONS SECTION
 # --------------------------
-if st.button("Get Recommendations", key="recommend_btn"):
-    st.markdown('<div class="row-title">✨ Recommended for You</div>', unsafe_allow_html=True)
+if st.button("🎯 Get Recommendations", key="recommend_btn"):
+    if not book:
+        st.error("Please select a book first!")
+    else:
+        with st.spinner("🔍 Analyzing book content and finding similar recommendations..."):
+            st.markdown('<div class="row-title">✨ Recommended for You</div>', unsafe_allow_html=True)
 
-    idx = df[df['title'] == book].index[0]
+            # Get the selected book's index
+            idx = df[df['title'] == book].index[0]
 
-    recs = recommend_books(
-        embeddings[idx],
-        embeddings,
-        df
-    )
+            # Use semantic analysis to find similar books
+            recs = recommend_books(
+                embeddings[idx],  # Selected book's embedding
+                embeddings,       # All book embeddings
+                df               # Book data
+            )
 
-    cols = st.columns(6)
-    for i, (title, score) in enumerate(recs):
-        if i >= 12:  # Show top 12 recommendations
-            break
-        # Get the full row data for this recommended book
-        rec_row = df[df['title'] == title].iloc[0] if len(df[df['title'] == title]) > 0 else None
-        with cols[i % 6]:
-            img_url = get_book_cover(title, rec_row)
+            if recs:
+                st.success(f"Found {len(recs)} recommendations based on semantic similarity!")
+
+                cols = st.columns(6)
+                for i, (title, score) in enumerate(recs):
+                    if i >= 12:  # Show top 12 recommendations
+                        break
+                    # Get the full row data for this recommended book
+                    rec_row = df[df['title'] == title].iloc[0] if len(df[df['title'] == title]) > 0 else None
+                    with cols[i % 6]:
+                        img_url = get_book_cover(title, rec_row)
+                        st.markdown(f"""
+                        <div class="book-card">
+                            <img src="{img_url}"
+                                 style="width:100%; height:200px; object-fit:cover; border-radius:8px; background-color:#333;"
+                                 onerror="this.src='https://via.placeholder.com/200x300/333/666?text=Loading...'"
+                                 loading="lazy">
+                            <div class="book-title">{title[:50]}{'...' if len(title) > 50 else ''}</div>
+                            <div style="font-size: 12px; color: #666; text-align: center; margin-top: 4px;">
+                                Similarity: {score:.2f}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+            else:
+                st.warning("No recommendations found. Try selecting a different book.")
             st.markdown(f"""
             <div class="book-card">
                 <img src="{img_url}"
@@ -286,7 +309,7 @@ if st.button("Get Recommendations", key="recommend_btn"):
 # --------------------------
 # POPULAR GENRES ROW
 # --------------------------
-st.markdown('<div class="row-title" style="color: #0066cc;">📖 Popular Genres</div>', unsafe_allow_html=True)
+st.markdown('<div class="row-title" style="color: #0066cc;">Popular Genres</div>', unsafe_allow_html=True)
 
 # Sample some books from different "genres" (we'll simulate this)
 genre_books = df.sample(12, random_state=123)
