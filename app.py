@@ -353,45 +353,75 @@ else:
 # --------------------------
 # ADVANCED SEARCH & FILTERS
 # --------------------------
-with st.expander("🔍 Advanced Search & Filters", expanded=False):
-    col1, col2, col3, col4 = st.columns(4)
+if len(df) > 0:
+    with st.expander("🔍 Advanced Search & Filters", expanded=False):
+        col1, col2, col3, col4 = st.columns(4)
 
-    with col1:
-        min_rating = st.slider("Min Rating", 0.0, 5.0, 0.0, 0.5)
-    with col2:
-        min_pages = st.slider("Min Pages", 0, 2000, 0, 50)
-    with col3:
-        max_pages = st.slider("Max Pages", 0, 2000, 1000, 50)
-    with col4:
-        sort_by = st.selectbox("Sort by", ["title", "rating", "pages", "ratings"])
+        with col1:
+            if 'rating' in df.columns:
+                min_rating = st.slider("Min Rating", 0.0, 5.0, 0.0, 0.5)
+            else:
+                st.write("Rating filter not available")
+                min_rating = 0.0
+        with col2:
+            if 'pages' in df.columns:
+                min_pages = st.slider("Min Pages", 0, 2000, 0, 50)
+            else:
+                st.write("Pages filter not available")
+                min_pages = 0
+        with col3:
+            if 'pages' in df.columns:
+                max_pages = st.slider("Max Pages", 0, 2000, 1000, 50)
+            else:
+                st.write("Pages filter not available")
+                max_pages = 2000
+        with col4:
+            # Determine available sort options based on existing columns
+            sort_options = ["title"]  # title is always available
+            if 'rating' in df.columns:
+                sort_options.append("rating")
+            if 'pages' in df.columns:
+                sort_options.append("pages")
+            if 'ratings' in df.columns:
+                sort_options.append("ratings")
+            sort_by = st.selectbox("Sort by", sort_options)
 
-    # Apply filters
-    filtered_df = df[
-        (df['rating'] >= min_rating) &
-        (df['pages'] >= min_pages) &
-        (df['pages'] <= max_pages)
-    ].sort_values(sort_by, ascending=False)
+        # Apply filters only if we have the necessary columns
+        if 'rating' in df.columns and 'pages' in df.columns:
+            filtered_df = df[
+                (df['rating'] >= min_rating) &
+                (df['pages'] >= min_pages) &
+                (df['pages'] <= max_pages)
+            ].sort_values(sort_by, ascending=False)
+        elif 'rating' in df.columns:
+            filtered_df = df[df['rating'] >= min_rating].sort_values(sort_by, ascending=False)
+        elif 'pages' in df.columns:
+            filtered_df = df[
+                (df['pages'] >= min_pages) &
+                (df['pages'] <= max_pages)
+            ].sort_values(sort_by, ascending=False)
+        else:
+            filtered_df = df.sort_values(sort_by, ascending=False)
 
-    st.write(f"📚 Found {len(filtered_df)} books matching your criteria")
+        st.write(f"📚 Found {len(filtered_df)} books matching your criteria")
 
-    if len(filtered_df) > 0:
-        # Show filtered results
-        filter_cols = st.columns(6)
-        for i, (_, row) in enumerate(filtered_df.head(12).iterrows()):
-            with filter_cols[i % 6]:
-                img_url = get_book_cover(row['title'], row)
-                if st.button(f"🔍\n{row['title'][:25]}...", key=f"filter_{i}"):
-                    st.session_state.selected_book = row['title']
-                st.markdown(f"""
-                <div class="book-card">
-                    <img src="{img_url}" style="width:100%; height:150px; object-fit:cover; border-radius:8px; background-color:#333;" loading="lazy">
-                    <div class="book-title" style="font-size: 12px;">{row['title'][:40]}{'...' if len(row['title']) > 40 else ''}</div>
-                    <div style="font-size: 10px; color: #888; text-align: center;">⭐ {row['rating']}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-# --------------------------
-# THEME TOGGLE
+        if len(filtered_df) > 0:
+            # Show filtered results
+            filter_cols = st.columns(6)
+            for i, (_, row) in enumerate(filtered_df.head(12).iterrows()):
+                with filter_cols[i % 6]:
+                    img_url = get_book_cover(row['title'], row)
+                    if st.button(f"🔍\n{row['title'][:25]}...", key=f"filter_{i}"):
+                        st.session_state.selected_book = row['title']
+                    st.markdown(f"""
+                    <div class="book-card">
+                        <img src="{img_url}" style="width:100%; height:150px; object-fit:cover; border-radius:8px; background-color:#333;" loading="lazy">
+                        <div class="book-title" style="font-size: 12px;">{row['title'][:40]}{'...' if len(row['title']) > 40 else ''}</div>
+                        <div style="font-size: 10px; color: #888; text-align: center;">{'⭐ ' + str(row.get('rating', 'N/A')) if 'rating' in row.index else ''}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+else:
+    st.info("Book data is still loading or unavailable. Advanced filters will be available once data is loaded.")
 # --------------------------
 if 'theme' not in st.session_state:
     st.session_state.theme = 'dark'
@@ -437,31 +467,34 @@ with st.sidebar:
 # --------------------------
 # TRENDING BOOKS ROW
 # --------------------------
-st.markdown('<div class="row-title">Trending Books</div>', unsafe_allow_html=True)
+if len(df) > 0:
+    st.markdown('<div class="row-title">Trending Books</div>', unsafe_allow_html=True)
 
-# Create a scrollable row
-trending_books = df.sample(20, random_state=42)
+    # Create a scrollable row
+    trending_books = df.sample(min(20, len(df)), random_state=42)
 
-cols = st.columns(6)
-for i, (_, row) in enumerate(trending_books.iterrows()):
-    if i >= 18:  # Show 18 books in 3 rows of 6
-        break
-    with cols[i % 6]:
-        img_url = get_book_cover(row['title'], row)
-        # Make book card clickable
-        if st.button(f"📖\n{row['title'][:25]}{'...' if len(row['title']) > 25 else ''}",
-                    key=f"trending_{i}", help="Click to view details"):
-            st.session_state.selected_book = row['title']
+    cols = st.columns(6)
+    for i, (_, row) in enumerate(trending_books.iterrows()):
+        if i >= 18:  # Show 18 books in 3 rows of 6
+            break
+        with cols[i % 6]:
+            img_url = get_book_cover(row['title'], row)
+            # Make book card clickable
+            if st.button(f"📖\n{row['title'][:25]}{'...' if len(row['title']) > 25 else ''}",
+                        key=f"trending_{i}", help="Click to view details"):
+                st.session_state.selected_book = row['title']
 
-        st.markdown(f"""
-        <div class="book-card">
-            <img src="{img_url}"
-                 style="width:100%; height:200px; object-fit:cover; border-radius:8px; background-color:#333;"
-                 onerror="this.src='https://via.placeholder.com/200x300/333/666?text=Loading...'"
-                 loading="lazy">
-            <div class="book-title">{row['title'][:50]}{'...' if len(row['title']) > 50 else ''}</div>
-        </div>
-        """, unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="book-card">
+                <img src="{img_url}"
+                     style="width:100%; height:200px; object-fit:cover; border-radius:8px; background-color:#333;"
+                     onerror="this.src='https://via.placeholder.com/200x300/333/666?text=Loading...'"
+                     loading="lazy">
+                <div class="book-title">{row['title'][:50]}{'...' if len(row['title']) > 50 else ''}</div>
+            </div>
+            """, unsafe_allow_html=True)
+else:
+    st.info("Trending books will be available once data is loaded.")
 
 # --------------------------
 # RECOMMENDATIONS SECTION
@@ -521,53 +554,71 @@ if st.button("Get Recommendations", key="recommend_btn"):
 # --------------------------
 # DATA INSIGHTS SECTION
 # --------------------------
-st.markdown('<div class="row-title">📊 Book Insights</div>', unsafe_allow_html=True)
+if len(df) > 0:
+    st.markdown('<div class="row-title">📊 Book Insights</div>', unsafe_allow_html=True)
 
-col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns(3)
 
-with col1:
-    # Top rated books
-    top_rated = df.nlargest(5, 'rating')[['title', 'rating']]
-    with st.expander("⭐ Top Rated Books"):
-        for _, book in top_rated.iterrows():
-            st.write(f"**{book['title'][:40]}...** - ⭐ {book['rating']}")
+    with col1:
+        # Top rated books
+        if 'rating' in df.columns:
+            top_rated = df.nlargest(5, 'rating')[['title', 'rating']]
+            with st.expander("⭐ Top Rated Books"):
+                for _, book in top_rated.iterrows():
+                    st.write(f"**{book['title'][:40]}...** - ⭐ {book['rating']}")
+        else:
+            with st.expander("⭐ Top Rated Books"):
+                st.write("Rating data not available")
 
-with col2:
-    # Most popular books (by ratings count)
-    most_rated = df.nlargest(5, 'ratings')[['title', 'ratings']]
-    with st.expander("📈 Most Popular Books"):
-        for _, book in most_rated.iterrows():
-            st.write(f"**{book['title'][:40]}...** - 📊 {book['ratings']:,} ratings")
+    with col2:
+        # Most popular books (by ratings count)
+        if 'ratings' in df.columns:
+            most_rated = df.nlargest(5, 'ratings')[['title', 'ratings']]
+            with st.expander("📈 Most Popular Books"):
+                for _, book in most_rated.iterrows():
+                    st.write(f"**{book['title'][:40]}...** - 📊 {book['ratings']:,} ratings")
+        else:
+            with st.expander("📈 Most Popular Books"):
+                st.write("Ratings data not available")
 
-with col3:
-    # Reading time distribution
-    short_books = len(df[df['pages'] < 200])
-    medium_books = len(df[(df['pages'] >= 200) & (df['pages'] < 400)])
-    long_books = len(df[df['pages'] >= 400])
+    with col3:
+        # Reading time distribution
+        if 'pages' in df.columns:
+            short_books = len(df[df['pages'] < 200])
+            medium_books = len(df[(df['pages'] >= 200) & (df['pages'] < 400)])
+            long_books = len(df[df['pages'] >= 400])
 
-    with st.expander("⏱️ Reading Time Distribution"):
-        st.write(f"📖 Short (<200 pages): {short_books}")
-        st.write(f"📚 Medium (200-400 pages): {medium_books}")
-        st.write(f"📝 Long (400+ pages): {long_books}")
+            with st.expander("⏱️ Reading Time Distribution"):
+                st.write(f"📖 Short (<200 pages): {short_books}")
+                st.write(f"📚 Medium (200-400 pages): {medium_books}")
+                st.write(f"📝 Long (400+ pages): {long_books}")
+        else:
+            with st.expander("⏱️ Reading Time Distribution"):
+                st.write("Page data not available")
+else:
+    st.info("Data insights will be available once book data is loaded.")
 
 # --------------------------
 # POPULAR GENRES ROW
 # --------------------------
-st.markdown('<div class="row-title" style="color: #0066cc;">Popular Genres</div>', unsafe_allow_html=True)
+if len(df) > 0:
+    st.markdown('<div class="row-title" style="color: #0066cc;">Popular Genres</div>', unsafe_allow_html=True)
 
-# Sample some books from different "genres" (we'll simulate this)
-genre_books = df.sample(12, random_state=123)
+    # Sample some books from different "genres" (we'll simulate this)
+    genre_books = df.sample(12, random_state=123)
 
-cols = st.columns(6)
-for i, (_, row) in enumerate(genre_books.iterrows()):
-    with cols[i % 6]:
-        img_url = get_book_cover(row['title'], row)
-        st.markdown(f"""
-        <div class="book-card">
-            <img src="{img_url}"
-                 style="width:100%; height:200px; object-fit:cover; border-radius:8px; background-color:#333;"
-                 onerror="this.src='https://via.placeholder.com/200x300/333/666?text=Loading...'"
-                 loading="lazy">
-            <div class="book-title">{row['title'][:50]}{'...' if len(row['title']) > 50 else ''}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    cols = st.columns(6)
+    for i, (_, row) in enumerate(genre_books.iterrows()):
+        with cols[i % 6]:
+            img_url = get_book_cover(row['title'], row)
+            st.markdown(f"""
+            <div class="book-card">
+                <img src="{img_url}"
+                     style="width:100%; height:200px; object-fit:cover; border-radius:8px; background-color:#333;"
+                     onerror="this.src='https://via.placeholder.com/200x300/333/666?text=Loading...'"
+                     loading="lazy">
+                <div class="book-title">{row['title'][:50]}{'...' if len(row['title']) > 50 else ''}</div>
+            </div>
+            """, unsafe_allow_html=True)
+else:
+    st.info("Popular genres section will be available once data is loaded.")

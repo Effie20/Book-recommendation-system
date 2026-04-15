@@ -1,5 +1,6 @@
 import pandas as pd
 from pathlib import Path
+import os
 
 # Auto-detect CSV in the repository `data` folder (the folder containing this file)
 DATA_DIR = Path(__file__).resolve().parent
@@ -15,6 +16,7 @@ def find_csv(preferred_names=PREFERRED_FILES, search_dir=DATA_DIR):
     Strategy:
     - Look for preferred filenames in `data/Good reads dataset/` and `data/`
     - If none found, return the first CSV discovered under `data/`
+    - Try current working directory as fallback
     - Raise FileNotFoundError if none exist
     """
     # Check preferred locations first
@@ -31,7 +33,22 @@ def find_csv(preferred_names=PREFERRED_FILES, search_dir=DATA_DIR):
     if files:
         return files[0]
 
-    raise FileNotFoundError(f"No CSV file found in {search_dir}. Put your dataset under {search_dir} or pass a path.")
+    # Additional fallback: try current working directory
+    cwd = Path.cwd()
+    for name in preferred_names:
+        candidate = cwd / "data" / "Good reads dataset" / name
+        if candidate.exists():
+            return candidate
+        candidate2 = cwd / "data" / name
+        if candidate2.exists():
+            return candidate2
+
+    # Final fallback: search from current working directory
+    files = list(cwd.rglob("*.csv"))
+    if files:
+        return files[0]
+
+    raise FileNotFoundError(f"No CSV file found in {search_dir} or {cwd}. Put your dataset under data/ or data/Good reads dataset/")
 
 
 def load_and_clean_data(path: str | Path | None = None):
@@ -39,33 +56,97 @@ def load_and_clean_data(path: str | Path | None = None):
 
     Returns a cleaned DataFrame with a `content` column for semantic analysis.
     """
-    if path is None:
-        path = find_csv()
-    path = Path(path)
+    try:
+        if path is None:
+            path = find_csv()
+        path = Path(path)
 
-    print(f"Loading CSV from: {path}")
-    df = pd.read_csv(path)
+        print(f"Loading CSV from: {path}")
+        print(f"File exists: {path.exists()}")
+        print(f"File size: {path.stat().st_size if path.exists() else 'N/A'} bytes")
 
-    print(df.head())
-    print(df.columns)
+        # Try to read the CSV with error handling
+        try:
+            df = pd.read_csv(path, encoding='utf-8')
+        except UnicodeDecodeError:
+            # Try different encoding
+            df = pd.read_csv(path, encoding='latin1')
+        except Exception as e:
+            raise Exception(f"Failed to read CSV file: {e}")
 
-    # Keep only important columns
-    df = df[["title", "author", "description"]]
+        print(f"Successfully loaded DataFrame with shape: {df.shape}")
+        print(f"Columns: {list(df.columns)}")
 
-    # Fill missing values
-    df["description"] = df["description"].fillna("")
+        if df.empty:
+            raise ValueError("CSV file is empty or has no valid data")
 
-    # Remove duplicates
-    df = df.drop_duplicates(subset="title")
+        # Check if required columns exist
+        required_cols = ["title", "author", "description"]
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            print(f"Warning: Missing columns {missing_cols}. Available columns: {list(df.columns)}")
+            # Try to map alternative column names
+            column_mapping = {
+                "book_title": "title",
+                "book_author": "author",
+                "summary": "description",
+                "text": "description"
+            }
+            for alt, std in column_mapping.items():
+                if alt in df.columns and std in missing_cols:
+                    df = df.rename(columns={alt: std})
+                    missing_cols.remove(std)
 
-    # Reset index
-    df = df.reset_index(drop=True)
+            if missing_cols:
+                raise ValueError(f"Required columns still missing: {missing_cols}")
 
-    # Combine text for semantic analysis
-    df["content"] = df["title"] + " " + df["author"] + " " + df["description"]
+        # Keep important columns (include those needed for filtering and display)
+        columns_to_keep = ["title", "author", "description"]
+        optional_columns = ["rating", "pages", "imageURL", "ratings", "genres"]
 
-    print(df.head())
-    return df
+        # Add optional columns if they exist
+        for col in optional_columns:
+            if col in df.columns:
+                columns_to_keep.append(col)
+
+        df = df[columns_to_keep]
+
+        # Fill missing values
+        df["description"] = df["description"].fillna("")
+        if "rating" in df.columns:
+            df["rating"] = pd.to_numeric(df["rating"], errors='coerce').fillna(0.0)
+        if "pages" in df.columns:
+            df["pages"] = pd.to_numeric(df["pages"], errors='coerce').fillna(0)
+        if "ratings" in df.columns:
+            df["ratings"] = pd.to_numeric(df["ratings"], errors='coerce').fillna(0)
+
+        # Remove duplicates
+        df = df.drop_duplicates(subset="title")
+
+        # Reset index
+        df = df.reset_index(drop=True)
+
+        # Combine text for semantic analysis
+        df["content"] = df["title"] + " " + df["author"] + " " + df["description"]
+
+        # Remove duplicates
+        df = df.drop_duplicates(subset="title")
+
+        # Reset index
+        df = df.reset_index(drop=True)
+
+        # Combine text for semantic analysis
+        df["content"] = df["title"] + " " + df["author"] + " " + df["description"]
+
+        print(f"Final DataFrame shape: {df.shape}")
+        print("Sample data:")
+        print(df.head())
+
+        return df
+
+    except Exception as e:
+        print(f"Error in load_and_clean_data: {e}")
+        raise
 
 
 # Example usage: auto-detect the dataset in the `data` folder next to this file
