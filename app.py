@@ -2,6 +2,7 @@ import streamlit as st
 import sys
 import os
 import requests
+import pandas as pd
 
 # --------------------------
 # IMPORT YOUR EXISTING MODULES
@@ -138,7 +139,15 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 # --------------------------
 # BOOK COVER FUNCTION
 # --------------------------
-def get_book_cover(title):
+def get_book_cover(title, row=None):
+    """Get book cover from dataset first, then API as fallback"""
+    # First try to get image from the dataset row
+    if row is not None and 'imageURL' in row.index and pd.notna(row['imageURL']) and row['imageURL'].strip():
+        img_url = str(row['imageURL']).strip()
+        if img_url and img_url != 'nan' and 'http' in img_url:
+            return img_url
+
+    # Fallback to Google Books API
     try:
         # Clean the title for better API results
         clean_title = title.split(':')[0].split('(')[0].strip()[:50]
@@ -224,7 +233,7 @@ for i, (_, row) in enumerate(trending_books.iterrows()):
     if i >= 18:  # Show 18 books in 3 rows of 6
         break
     with cols[i % 6]:
-        img_url = get_book_cover(row['title'])
+        img_url = get_book_cover(row['title'], row)
         st.markdown(f"""
         <div class="book-card">
             <img src="{img_url}"
@@ -253,8 +262,10 @@ if st.button("🎯 Get Recommendations", key="recommend_btn"):
     for i, (title, score) in enumerate(recs):
         if i >= 12:  # Show top 12 recommendations
             break
+        # Get the full row data for this recommended book
+        rec_row = df[df['title'] == title].iloc[0] if len(df[df['title'] == title]) > 0 else None
         with cols[i % 6]:
-            img_url = get_book_cover(title)
+            img_url = get_book_cover(title, rec_row)
             st.markdown(f"""
             <div class="book-card">
                 <img src="{img_url}"
@@ -276,7 +287,7 @@ genre_books = df.sample(12, random_state=123)
 cols = st.columns(6)
 for i, (_, row) in enumerate(genre_books.iterrows()):
     with cols[i % 6]:
-        img_url = get_book_cover(row['title'])
+        img_url = get_book_cover(row['title'], row)
         st.markdown(f"""
         <div class="book-card">
             <img src="{img_url}"
