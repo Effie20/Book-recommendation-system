@@ -61,10 +61,10 @@ body {
 
 .book-title {
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 700;
     text-align: center;
     margin-top: 8px;
-    color: white;
+    color: black;
     max-height: 40px;
     overflow: hidden;
     display: -webkit-box;
@@ -286,7 +286,7 @@ if st.button("Get Recommendations", key="recommend_btn"):
 # --------------------------
 # POPULAR GENRES ROW
 # --------------------------
-st.markdown('<div class="row-title">📖 Popular Genres</div>', unsafe_allow_html=True)
+st.markdown('<div class="row-title">Popular Genres</div>', unsafe_allow_html=True)
 
 # Sample some books from different "genres" (we'll simulate this)
 genre_books = df.sample(12, random_state=123)
