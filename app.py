@@ -286,7 +286,7 @@ if st.button("Get Recommendations", key="recommend_btn"):
 # --------------------------
 # POPULAR GENRES ROW
 # --------------------------
-st.markdown('<div class="row-title">Popular Genres</div>', unsafe_allow_html=True)
+st.markdown('<div class="row-title" style="color: #0066cc;">📖 Popular Genres</div>', unsafe_allow_html=True)
 
 # Sample some books from different "genres" (we'll simulate this)
 genre_books = df.sample(12, random_state=123)
