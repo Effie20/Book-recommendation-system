@@ -32,7 +32,7 @@ header {visibility: hidden;}
 }
 
 body {
-    background-color: #141414;
+    background-color: #000000;
     color: white;
     font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
@@ -50,6 +50,8 @@ body {
     overflow: hidden;
     cursor: pointer;
     margin-bottom: 10px;
+    border: 3px solid #ff69b4;
+    background-color: rgba(255, 20, 147, 0.1);
 }
 
 .book-card:hover {
@@ -90,8 +92,8 @@ body {
 }
 
 .stSelectbox > div > div {
-    background-color: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.3);
+    background-color: #8a2be2;
+    border: 2px solid #9370db;
     border-radius: 5px;
     color: white;
 }
