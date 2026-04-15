@@ -142,12 +142,14 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 def get_book_cover(title, row=None):
     """Get book cover from dataset first, then API as fallback"""
     # First try to get image from the dataset row
-    if row is not None and 'imageURL' in row.index and pd.notna(row['imageURL']) and row['imageURL'].strip():
+    if row is not None and 'imageURL' in row.index:
         img_url = str(row['imageURL']).strip()
-        if img_url and img_url != 'nan' and 'http' in img_url:
+        print(f"DEBUG: Checking imageURL for '{title}': '{img_url}'")  # Debug line
+        if pd.notna(row['imageURL']) and img_url and img_url != 'nan' and 'http' in img_url.lower():
+            print(f"DEBUG: Using dataset image: {img_url}")  # Debug line
             return img_url
 
-    # Fallback to Google Books API
+    print(f"DEBUG: No valid dataset image for '{title}', trying API")  # Debug line
     try:
         # Clean the title for better API results
         clean_title = title.split(':')[0].split('(')[0].strip()[:50]
@@ -164,15 +166,16 @@ def get_book_cover(title, row=None):
             # Try different image sizes in order of preference
             for size in ['large', 'medium', 'small', 'thumbnail']:
                 if size in image_links:
+                    print(f"DEBUG: Using API image ({size}): {image_links[size]}")  # Debug line
                     return image_links[size]
 
             # If no specific size, try thumbnail
             if 'thumbnail' in image_links:
+                print(f"DEBUG: Using API thumbnail: {image_links['thumbnail']}")  # Debug line
                 return image_links['thumbnail']
 
     except Exception as e:
-        # Log the error but don't crash
-        print(f"Error getting cover for '{title}': {e}")
+        print(f"DEBUG: API error for '{title}': {e}")  # Debug line
         pass
 
     # Multiple fallback options
@@ -184,7 +187,9 @@ def get_book_cover(title, row=None):
 
     # Return a random fallback to add variety
     import random
-    return random.choice(fallbacks)
+    fallback = random.choice(fallbacks)
+    print(f"DEBUG: Using fallback for '{title}': {fallback}")  # Debug line
+    return fallback
 
 # --------------------------
 # LOAD DATA
@@ -197,7 +202,7 @@ embeddings = get_embeddings(df['content'].tolist())
 # --------------------------
 st.markdown("""
 <div class="hero-section">
-    <div class="hero-title">📚 BookFlix</div>
+    <div class="hero-title">Book Recommendation</div>
     <div class="hero-subtitle">Discover your next favorite book with AI-powered recommendations</div>
 </div>
 """, unsafe_allow_html=True)
@@ -211,7 +216,7 @@ col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     st.markdown('<div class="search-input">', unsafe_allow_html=True)
     book = st.selectbox(
-        "🔍 Search for a book to get recommendations",
+        " Search for a book to get recommendations",
         df['title'],
         label_visibility="collapsed",
         key="search"
@@ -223,7 +228,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # --------------------------
 # TRENDING BOOKS ROW
 # --------------------------
-st.markdown('<div class="row-title">🔥 Trending Books</div>', unsafe_allow_html=True)
+st.markdown('<div class="row-title">Trending Books</div>', unsafe_allow_html=True)
 
 # Create a scrollable row
 trending_books = df.sample(20, random_state=42)
@@ -247,7 +252,7 @@ for i, (_, row) in enumerate(trending_books.iterrows()):
 # --------------------------
 # RECOMMENDATIONS SECTION
 # --------------------------
-if st.button("🎯 Get Recommendations", key="recommend_btn"):
+if st.button("Get Recommendations", key="recommend_btn"):
     st.markdown('<div class="row-title">✨ Recommended for You</div>', unsafe_allow_html=True)
 
     idx = df[df['title'] == book].index[0]
