@@ -157,17 +157,35 @@ body {
 """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
-# --------------------------# LOAD DATA
+# --------------------------  
+# LOAD DATA
 # --------------------------
 @st.cache_data
 def load_data():
-    df = load_and_clean_data()
-    embeddings = get_embeddings(df['content'].tolist())
-    return df, embeddings
+    try:
+        st.info("Loading book data... This may take a moment.")
+        df = load_and_clean_data()
+        st.success(f"Loaded {len(df)} books successfully!")
+        
+        st.info("Generating embeddings for semantic analysis...")
+        embeddings = get_embeddings(df['content'].tolist())
+        st.success("Embeddings generated successfully!")
+        
+        return df, embeddings
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        st.error("Please check that the data files are properly uploaded and the preprocessing functions are working.")
+        # Return empty dataframes as fallback
+        import pandas as pd
+        from scipy.sparse import csr_matrix
+        empty_df = pd.DataFrame(columns=['title', 'author', 'description', 'content'])
+        empty_embeddings = csr_matrix((0, 0))
+        return empty_df, empty_embeddings
 
 df, embeddings = load_data()
 
-# --------------------------  # BOOK COVER FUNCTION
+# --------------------------  
+# BOOK COVER FUNCTION
 # --------------------------
 def get_book_cover(title, row=None):
     """Get book cover from dataset first, then API as fallback"""
@@ -268,44 +286,69 @@ if st.session_state.selected_book:
 # --------------------------
 # HERO SECTION
 # --------------------------
-st.markdown(f"""
-<div class="hero-section">
-    <div class="hero-title">📚 BookFlix</div>
-    <div class="hero-subtitle">Discover your next favorite book with AI-powered recommendations</div>
-    <div class="hero-stats">
-        <div class="stat-item">
-            <div class="stat-number">{len(df):,}</div>
-            <div class="stat-label">Books</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-number">AI-Powered</div>
-            <div class="stat-label">Recommendations</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-number">Semantic</div>
-            <div class="stat-label">Analysis</div>
+if len(df) > 0:
+    st.markdown(f"""
+    <div class="hero-section">
+        <div class="hero-title">📚 BookFlix</div>
+        <div class="hero-subtitle">Discover your next favorite book with AI-powered recommendations</div>
+        <div class="hero-stats">
+            <div class="stat-item">
+                <div class="stat-number">{len(df):,}</div>
+                <div class="stat-label">Books</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">AI-Powered</div>
+                <div class="stat-label">Recommendations</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">Semantic</div>
+                <div class="stat-label">Analysis</div>
+            </div>
         </div>
     </div>
-</div>
-""", unsafe_allow_html=True)
-
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <div class="hero-section">
+        <div class="hero-title">📚 BookFlix</div>
+        <div class="hero-subtitle">Discover your next favorite book with AI-powered recommendations</div>
+        <div class="hero-stats">
+            <div class="stat-item">
+                <div class="stat-number">Loading...</div>
+                <div class="stat-label">Books</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">AI-Powered</div>
+                <div class="stat-label">Recommendations</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">Semantic</div>
+                <div class="stat-label">Analysis</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 # --------------------------
 # SEARCH SECTION
 # --------------------------
-st.markdown('<div class="search-container">', unsafe_allow_html=True)
-col1, col2, col3 = st.columns([1, 2, 1])
+if len(df) > 0:
+    st.markdown('<div class="search-container">', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
 
-with col2:
-    st.markdown('<div class="search-input">', unsafe_allow_html=True)
-    book = st.selectbox(
-        " Search for a book to get recommendations",
-        df['title'],
-        label_visibility="collapsed",
-        key="search"
-    )
+    with col2:
+        st.markdown('<div class="search-input">', unsafe_allow_html=True)
+        book = st.selectbox(
+            " Search for a book to get recommendations",
+            df['title'],
+            label_visibility="collapsed",
+            key="search"
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
     st.markdown('</div>', unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
+else:
+    st.warning("Book data is still loading. Please wait...")
+    book = None
 
 # --------------------------
 # ADVANCED SEARCH & FILTERS
