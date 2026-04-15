@@ -223,7 +223,7 @@ def show_book_details(book_title):
     if book_title:
         book_data = df[df['title'] == book_title].iloc[0] if len(df[df['title'] == book_title]) > 0 else None
         if book_data is not None:
-            with st.expander(f"📖 {book_title}", expanded=True):
+            with st.expander(f"{book_title}", expanded=True):
                 col1, col2 = st.columns([1, 2])
 
                 with col1:
@@ -496,7 +496,7 @@ with col3:
     with st.expander("⏱️ Reading Time Distribution"):
         st.write(f"📖 Short (<200 pages): {short_books}")
         st.write(f"📚 Medium (200-400 pages): {medium_books}")
-        st.write(f📝 Long (400+ pages): {long_books}")
+        st.write(f"📝 Long (400+ pages): {long_books}")
 
 # --------------------------
 # POPULAR GENRES ROW
