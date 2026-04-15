@@ -2,53 +2,90 @@ import pandas as pd
 from pathlib import Path
 import os
 
-# Auto-detect CSV in the repository `data` folder (the folder containing this file)
-DATA_DIR = Path(__file__).resolve().parent
+# Auto-detect CSV in the repository `data` folder
+# Try multiple strategies for different environments (local vs Streamlit Cloud)
+def get_base_paths():
+    """Get possible base paths for the data directory"""
+    paths = []
+
+    # Strategy 1: Relative to this file (works locally)
+    try:
+        file_based = Path(__file__).resolve().parent
+        paths.append(file_based)
+    except:
+        pass
+
+    # Strategy 2: Current working directory (works on Streamlit Cloud)
+    try:
+        cwd_based = Path.cwd()
+        paths.append(cwd_based)
+        paths.append(cwd_based / "data")
+    except:
+        pass
+
+    # Strategy 3: Parent of current working directory
+    try:
+        parent_cwd = Path.cwd().parent
+        paths.append(parent_cwd)
+        paths.append(parent_cwd / "data")
+    except:
+        pass
+
+    return paths
+
 PREFERRED_FILES = [
     "cleaned_goodreads_books_dataset.csv",
     "goodreads_books_dataset.csv",
 ]
 
 
-def find_csv(preferred_names=PREFERRED_FILES, search_dir=DATA_DIR):
+def find_csv(preferred_names=PREFERRED_FILES, search_paths=None):
     """Return a Path to a CSV file.
 
     Strategy:
-    - Look for preferred filenames in `data/Good reads dataset/` and `data/`
-    - If none found, return the first CSV discovered under `data/`
-    - Try current working directory as fallback
+    - Look for preferred filenames in multiple possible locations
+    - Try current directory and subdirectories
     - Raise FileNotFoundError if none exist
     """
+    if search_paths is None:
+        search_paths = get_base_paths()
+
+    print(f"Searching for CSV files in paths: {[str(p) for p in search_paths]}")
+
     # Check preferred locations first
-    for name in preferred_names:
-        candidate = search_dir / "Good reads dataset" / name
-        if candidate.exists():
-            return candidate
-        candidate2 = search_dir / name
-        if candidate2.exists():
-            return candidate2
+    for base_path in search_paths:
+        for name in preferred_names:
+            candidate = base_path / "Good reads dataset" / name
+            print(f"Checking: {candidate}")
+            if candidate.exists():
+                print(f"Found CSV at: {candidate}")
+                return candidate
+            candidate2 = base_path / name
+            print(f"Checking: {candidate2}")
+            if candidate2.exists():
+                print(f"Found CSV at: {candidate2}")
+                return candidate2
 
-    # Fallback: search for any CSV recursively
-    files = list(search_dir.rglob("*.csv"))
-    if files:
-        return files[0]
+    # Fallback: search recursively from search paths
+    for base_path in search_paths:
+        if base_path.exists():
+            files = list(base_path.rglob("*.csv"))
+            if files:
+                print(f"Found CSV via recursive search: {files[0]}")
+                return files[0]
 
-    # Additional fallback: try current working directory
-    cwd = Path.cwd()
-    for name in preferred_names:
-        candidate = cwd / "data" / "Good reads dataset" / name
-        if candidate.exists():
-            return candidate
-        candidate2 = cwd / "data" / name
-        if candidate2.exists():
-            return candidate2
+    # Final fallback: search from current directory
+    try:
+        cwd = Path.cwd()
+        files = list(cwd.rglob("*.csv"))
+        if files:
+            print(f"Found CSV via CWD recursive search: {files[0]}")
+            return files[0]
+    except:
+        pass
 
-    # Final fallback: search from current working directory
-    files = list(cwd.rglob("*.csv"))
-    if files:
-        return files[0]
-
-    raise FileNotFoundError(f"No CSV file found in {search_dir} or {cwd}. Put your dataset under data/ or data/Good reads dataset/")
+    available_paths = [str(p) for p in search_paths if p.exists()]
+    raise FileNotFoundError(f"No CSV file found. Searched in: {available_paths}")
 
 
 def load_and_clean_data(path: str | Path | None = None):

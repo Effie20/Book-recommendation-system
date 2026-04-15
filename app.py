@@ -3,6 +3,7 @@ import sys
 import os
 import requests
 import pandas as pd
+import glob
 
 # --------------------------
 # IMPORT YOUR EXISTING MODULES
@@ -164,17 +165,76 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 def load_data():
     try:
         st.info("Loading book data... This may take a moment.")
-        df = load_and_clean_data()
-        st.success(f"Loaded {len(df)} books successfully!")
         
-        st.info("Generating embeddings for semantic analysis...")
-        embeddings = get_embeddings(df['content'].tolist())
-        st.success("Embeddings generated successfully!")
+        # First, let's check what files are available
+        import glob
+        csv_files = glob.glob("**/*.csv", recursive=True)
+        if csv_files:
+            st.info(f"Found CSV files: {csv_files}")
+        else:
+            st.warning("No CSV files found in the deployment. This might be the issue.")
         
-        return df, embeddings
+        # Try multiple loading strategies
+        df = None
+        error_msg = ""
+        
+        # Strategy 1: Use the preprocessing function
+        try:
+            df = load_and_clean_data()
+            st.success(f"Loaded {len(df)} books successfully!")
+        except Exception as e:
+            error_msg += f"Preprocessing load failed: {str(e)}\n"
+            st.warning(f"Standard loading failed: {str(e)}")
+            
+            # Strategy 2: Direct file loading with multiple paths
+            paths_to_try = [
+                "data/Good reads dataset/cleaned_goodreads_books_dataset.csv",
+                "data/cleaned_goodreads_books_dataset.csv",
+                "Good reads dataset/cleaned_goodreads_books_dataset.csv",
+                "cleaned_goodreads_books_dataset.csv"
+            ]
+            
+            for path in paths_to_try:
+                try:
+                    st.info(f"Trying direct load from: {path}")
+                    if os.path.exists(path):
+                        df = pd.read_csv(path, encoding='utf-8')
+                        st.success(f"Direct load successful from {path}!")
+                        break
+                    else:
+                        st.warning(f"Path not found: {path}")
+                except Exception as e2:
+                    error_msg += f"Direct load from {path} failed: {str(e2)}\n"
+                    continue
+        
+        if df is None or df.empty:
+            st.error("All data loading methods failed. Please check your data files.")
+            st.error("Error details:")
+            st.code(error_msg)
+            
+            # Provide manual upload option
+            st.warning("As a fallback, you can upload your CSV file manually:")
+            uploaded_file = st.file_uploader("Upload your book dataset (CSV)", type="csv")
+            if uploaded_file is not None:
+                df = pd.read_csv(uploaded_file)
+                st.success(f"Loaded {len(df)} books from uploaded file!")
+        
+        if df is not None and not df.empty:
+            # Generate embeddings
+            st.info("Generating embeddings for semantic analysis...")
+            embeddings = get_embeddings(df['content'].tolist())
+            st.success("Embeddings generated successfully!")
+            return df, embeddings
+        else:
+            # Return empty dataframes as fallback
+            import pandas as pd
+            from scipy.sparse import csr_matrix
+            empty_df = pd.DataFrame(columns=['title', 'author', 'description', 'content'])
+            empty_embeddings = csr_matrix((0, 0))
+            return empty_df, empty_embeddings
+            
     except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        st.error("Please check that the data files are properly uploaded and the preprocessing functions are working.")
+        st.error(f"Unexpected error during data loading: {str(e)}")
         # Return empty dataframes as fallback
         import pandas as pd
         from scipy.sparse import csr_matrix
