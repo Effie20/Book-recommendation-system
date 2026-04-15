@@ -139,14 +139,43 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 # BOOK COVER FUNCTION
 # --------------------------
 def get_book_cover(title):
-    url = f"https://www.googleapis.com/books/v1/volumes?q={title}"
-    response = requests.get(url)
-    data = response.json()
-
     try:
-        return data['items'][0]['volumeInfo']['imageLinks']['thumbnail']
-    except:
-        return "https://via.placeholder.com/150"
+        # Clean the title for better API results
+        clean_title = title.split(':')[0].split('(')[0].strip()[:50]
+        url = f"https://www.googleapis.com/books/v1/volumes?q={clean_title}&maxResults=1"
+
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        if 'items' in data and len(data['items']) > 0:
+            volume_info = data['items'][0].get('volumeInfo', {})
+            image_links = volume_info.get('imageLinks', {})
+
+            # Try different image sizes in order of preference
+            for size in ['large', 'medium', 'small', 'thumbnail']:
+                if size in image_links:
+                    return image_links[size]
+
+            # If no specific size, try thumbnail
+            if 'thumbnail' in image_links:
+                return image_links['thumbnail']
+
+    except Exception as e:
+        # Log the error but don't crash
+        print(f"Error getting cover for '{title}': {e}")
+        pass
+
+    # Multiple fallback options
+    fallbacks = [
+        "https://via.placeholder.com/200x300/e50914/ffffff?text=No+Cover",
+        "https://via.placeholder.com/200x300/667eea/ffffff?text=Book",
+        "https://via.placeholder.com/200x300/764ba2/ffffff?text=📚"
+    ]
+
+    # Return a random fallback to add variety
+    import random
+    return random.choice(fallbacks)
 
 # --------------------------
 # LOAD DATA
@@ -198,7 +227,10 @@ for i, (_, row) in enumerate(trending_books.iterrows()):
         img_url = get_book_cover(row['title'])
         st.markdown(f"""
         <div class="book-card">
-            <img src="{img_url}" style="width:100%; height:200px; object-fit:cover; border-radius:8px;">
+            <img src="{img_url}"
+                 style="width:100%; height:200px; object-fit:cover; border-radius:8px; background-color:#333;"
+                 onerror="this.src='https://via.placeholder.com/200x300/333/666?text=Loading...'"
+                 loading="lazy">
             <div class="book-title">{row['title'][:50]}{'...' if len(row['title']) > 50 else ''}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -225,7 +257,10 @@ if st.button("🎯 Get Recommendations", key="recommend_btn"):
             img_url = get_book_cover(title)
             st.markdown(f"""
             <div class="book-card">
-                <img src="{img_url}" style="width:100%; height:200px; object-fit:cover; border-radius:8px;">
+                <img src="{img_url}"
+                     style="width:100%; height:200px; object-fit:cover; border-radius:8px; background-color:#333;"
+                     onerror="this.src='https://via.placeholder.com/200x300/333/666?text=Loading...'"
+                     loading="lazy">
                 <div class="book-title">{title[:50]}{'...' if len(title) > 50 else ''}</div>
             </div>
             """, unsafe_allow_html=True)
@@ -244,7 +279,10 @@ for i, (_, row) in enumerate(genre_books.iterrows()):
         img_url = get_book_cover(row['title'])
         st.markdown(f"""
         <div class="book-card">
-            <img src="{img_url}" style="width:100%; height:200px; object-fit:cover; border-radius:8px;">
+            <img src="{img_url}"
+                 style="width:100%; height:200px; object-fit:cover; border-radius:8px; background-color:#333;"
+                 onerror="this.src='https://via.placeholder.com/200x300/333/666?text=Loading...'"
+                 loading="lazy">
             <div class="book-title">{row['title'][:50]}{'...' if len(row['title']) > 50 else ''}</div>
         </div>
         """, unsafe_allow_html=True)
