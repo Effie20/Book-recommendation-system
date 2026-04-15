@@ -157,8 +157,17 @@ body {
 """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
+# --------------------------# LOAD DATA
 # --------------------------
-# BOOK COVER FUNCTION
+@st.cache_data
+def load_data():
+    df = load_and_clean_data()
+    embeddings = get_embeddings(df['content'].tolist())
+    return df, embeddings
+
+df, embeddings = load_data()
+
+# --------------------------  # BOOK COVER FUNCTION
 # --------------------------
 def get_book_cover(title, row=None):
     """Get book cover from dataset first, then API as fallback"""
