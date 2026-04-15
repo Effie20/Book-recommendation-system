@@ -149,6 +149,12 @@ def get_book_cover(title):
         return "https://via.placeholder.com/150"
 
 # --------------------------
+# LOAD DATA
+# --------------------------
+df = load_and_clean_data()
+embeddings = get_embeddings(df['content'].tolist())
+
+# --------------------------
 # HERO SECTION
 # --------------------------
 st.markdown("""
